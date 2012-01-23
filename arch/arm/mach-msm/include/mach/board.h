@@ -162,6 +162,38 @@ struct msm_snd_endpoints {
 	unsigned num;
 };
 
+struct msm_panel_common_pdata {
+	uintptr_t hw_revision_addr;
+	int gpio;
+	int (*backlight_level)(int level, int max, int min);
+	int (*pmic_backlight)(int level);
+	int (*panel_num)(void);
+	void (*panel_config_gpio)(int);
+	int (*vga_switch)(int select_vga);
+	int *gpio_num;
+	int mdp_core_clk_rate;
+	unsigned num_mdp_clk;
+	int *mdp_core_clk_table;
+#ifdef CONFIG_MSM_BUS_SCALING
+	struct msm_bus_scale_pdata *mdp_bus_scale_table;
+#endif
+};
+
+struct lcdc_platform_data {
+	int (*lcdc_gpio_config)(int on);
+	int (*lcdc_power_save)(int);
+	unsigned int (*lcdc_get_clk)(void);
+#ifdef CONFIG_MSM_BUS_SCALING
+	struct msm_bus_scale_pdata *bus_scale_table;
+#endif
+};
+
+struct msm_fb_platform_data {
+	int (*detect_client)(const char *name);
+	int mddi_prescan;
+	int (*allow_set_offset)(void);
+};
+
 extern struct sys_timer msm_timer;
 
 /* common init routines for use by arch/arm/mach-msm/board-*.c */
