@@ -58,6 +58,10 @@
 
 #define MSM_PMEM_SF_SIZE	0x1700000
 
+#define MDP_BASE          0xAA200000
+
+#define TVENC_BASE        0xAA400000
+
 #define MAHIMAHI_GPIO_PS_HOLD		25
 
 #define MAHIMAHI_GPIO_UP_INT_N		35

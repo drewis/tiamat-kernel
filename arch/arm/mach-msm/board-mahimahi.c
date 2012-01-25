@@ -275,6 +275,66 @@ static struct platform_device mahimahi_rfkill = {
 	.id = -1,
 };
 
+static struct resource msm_mdp_resources[] = {
+	{
+		.name   = "mdp",
+		.start  = MDP_BASE,
+		.end    = MDP_BASE + 0x000F0000 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.start  = INT_MDP,
+		.end    = INT_MDP,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct resource msm_tvenc_resources[] = {
+	{
+		.name   = "tvenc",
+		.start  = TVENC_BASE,
+		.end    = TVENC_BASE + PAGE_SIZE - 1,
+		.flags  = IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device msm_mdp_device = {
+	.name   = "mdp",
+	.id     = 0,
+	.num_resources  = ARRAY_SIZE(msm_mdp_resources),
+	.resource       = msm_mdp_resources,
+};
+
+static struct platform_device msm_tvenc_device = {
+	.name   = "tvenc",
+	.id     = 0,
+	.num_resources  = ARRAY_SIZE(msm_tvenc_resources),
+	.resource       = msm_tvenc_resources,
+};
+
+static void __init msm_register_device(struct platform_device *pdev, void *data)
+{
+	int ret;
+
+	pdev->dev.platform_data = data;
+
+	ret = platform_device_register(pdev);
+	if (ret)
+		dev_err(&pdev->dev,
+			  "%s: platform_device_register() failed = %d\n",
+			  __func__, ret);
+}
+
+void __init msm_fb_register_device(char *name, void *data)
+{
+	if (!strncmp(name, "mdp", 3))
+		msm_register_device(&msm_mdp_device, data);
+	else if (!strncmp(name, "tvenc", 5))
+		msm_register_device(&msm_tvenc_device, data);
+	else
+		printk(KERN_ERR "%s: unknown device! %s\n", __func__, name);
+}
+
 #if 0
 #define PWR_RAIL_GRP_CLK		8
 static int mahimahi_kgsl_power_rail_mode(int follow_clk)
@@ -474,6 +534,54 @@ static struct platform_device android_pmem_kernel_smi_device = {
 };
 #endif
 
+static struct resource msm_fb_resources[] = {
+	{
+		.flags  = IORESOURCE_DMA,
+	}
+};
+
+static int msm_fb_detect_panel(const char *name)
+{
+	int ret = -EPERM;
+
+#if 0
+	if (machine_is_qsd8x50_ffa()) {
+		if (!strncmp(name, "mddi_toshiba_wvga_pt", 20))
+			ret = 0;
+		else
+			ret = -ENODEV;
+	} else if ((machine_is_qsd8x50_surf())
+			&& !strcmp(name, "lcdc_external"))
+#endif
+		ret = 0;
+
+	return ret;
+}
+
+static struct msm_fb_platform_data msm_fb_pdata = {
+	.detect_client = msm_fb_detect_panel,
+};
+
+static struct platform_device msm_fb_device = {
+	.name   = "msm_fb",
+	.id     = 0,
+	.num_resources  = ARRAY_SIZE(msm_fb_resources),
+	.resource       = msm_fb_resources,
+	.dev    = {
+		.platform_data = &msm_fb_pdata,
+	}
+};
+
+static struct msm_panel_common_pdata mdp_pdata = {
+	.gpio = 98,
+};
+
+static void __init msm_fb_add_devices(void)
+{
+	msm_fb_register_device("mdp", &mdp_pdata);
+	msm_fb_register_device("tvenc", 0);
+	msm_fb_register_device("lcdc", 0);
+}
 
 static struct resource ram_console_resources[] = {
 	{
@@ -941,6 +1049,7 @@ static int __init ds2784_battery_init(void)
 }
 
 static struct platform_device *devices[] __initdata = {
+	&msm_fb_device,
 #if !defined(CONFIG_MSM_SERIAL_DEBUGGER)
 	&msm_device_uart1,
 #endif
@@ -1270,6 +1379,8 @@ static void __init mahimahi_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
+	msm_fb_add_devices();
+
 	i2c_register_board_info(0, base_i2c_devices,
 		ARRAY_SIZE(base_i2c_devices));
 
@@ -1376,14 +1487,12 @@ static void __init mahimahi_allocate_memory_regions(void)
 			"pmem arena\n", size, addr, __pa(addr));
 	}
 
-#if 0
 	size = MSM_FB_SIZE;
 	addr = (void *)MSM_FB_BASE;
 	msm_fb_resources[0].start = (unsigned long)addr;
 	msm_fb_resources[0].end = msm_fb_resources[0].start + size - 1;
 	pr_info("using %lu bytes of SMI at %lx physical for fb\n",
 	       size, (unsigned long)addr);
-#endif
 }
 
 static void __init mahimahi_map_io(void)

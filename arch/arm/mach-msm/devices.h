@@ -63,4 +63,12 @@ extern struct clk msm_clocks_8x50[];
 extern unsigned msm_num_clocks_8x50;
 extern struct platform_device msm_device_vidc_720p;
 
+extern struct platform_device msm_kgsl_3d0;
+#ifdef CONFIG_MSM_KGSL_2D
+extern struct platform_device msm_kgsl_2d0;
+extern struct platform_device msm_kgsl_2d1;
+#endif
+
+void __init msm_fb_register_device(char *name, void *data);
+
 #endif
