@@ -25,6 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/usb/android_composite.h>
 #include <linux/usb/f_accessory.h>
+#include <linux/bootmem.h>
 
 #include <linux/android_pmem.h>
 #include <linux/synaptics_i2c_rmi.h>
@@ -344,6 +345,7 @@ struct platform_device msm_kgsl_3d0 = {
 };
 /* end kgsl */
 
+#if 0
 static struct android_pmem_platform_data mdp_pmem_pdata = {
 	.name		= "pmem",
 	.start		= MSM_PMEM_MDP_BASE,
@@ -391,6 +393,87 @@ static struct platform_device android_pmem_venc_device = {
                 .platform_data = &android_pmem_venc_pdata,
         },
 };
+#endif
+
+static struct android_pmem_platform_data android_pmem_kernel_ebi1_pdata = {
+	.name = PMEM_KERNEL_EBI1_DATA_NAME,
+	/* if no allocator_type, defaults to PMEM_ALLOCATORTYPE_BITMAP,
+	 * the only valid choice at this time. The board structure is
+	 * set to all zeros by the C runtime initialization and that is now
+	 * the enum value of PMEM_ALLOCATORTYPE_BITMAP, now forced to 0 in
+	 * include/linux/android_pmem.h.
+	 */
+	.cached = 0,
+};
+
+#ifdef CONFIG_KERNEL_PMEM_SMI_REGION
+
+static struct android_pmem_platform_data android_pmem_kernel_smi_pdata = {
+	.name = PMEM_KERNEL_SMI_DATA_NAME,
+	/* if no allocator_type, defaults to PMEM_ALLOCATORTYPE_BITMAP,
+	 * the only valid choice at this time. The board structure is
+	 * set to all zeros by the C runtime initialization and that is now
+	 * the enum value of PMEM_ALLOCATORTYPE_BITMAP, now forced to 0 in
+	 * include/linux/android_pmem.h.
+	 */
+	.cached = 0,
+};
+
+#endif
+
+static struct android_pmem_platform_data android_pmem_pdata = {
+	.name = "pmem",
+	.allocator_type = PMEM_ALLOCATORTYPE_ALLORNOTHING,
+	.cached = 1,
+};
+
+static struct android_pmem_platform_data android_pmem_adsp_pdata = {
+	.name = "pmem_adsp",
+	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
+	.cached = 0,
+};
+
+static struct android_pmem_platform_data android_pmem_smipool_pdata = {
+	.name = "pmem_smipool",
+	.size = MSM_PMEM_SMIPOOL_SIZE,
+	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
+	.cached = 0,
+};
+
+
+static struct platform_device android_pmem_device = {
+	.name = "android_pmem",
+	.id = 0,
+	.dev = { .platform_data = &android_pmem_pdata },
+};
+
+static struct platform_device android_pmem_adsp_device = {
+	.name = "android_pmem",
+	.id = 1,
+	.dev = { .platform_data = &android_pmem_adsp_pdata },
+};
+
+static struct platform_device android_pmem_smipool_device = {
+	.name = "android_pmem",
+	.id = 2,
+	.dev = { .platform_data = &android_pmem_smipool_pdata },
+};
+
+
+static struct platform_device android_pmem_kernel_ebi1_device = {
+	.name = "android_pmem",
+	.id = 3,
+	.dev = { .platform_data = &android_pmem_kernel_ebi1_pdata },
+};
+
+#ifdef CONFIG_KERNEL_PMEM_SMI_REGION
+static struct platform_device android_pmem_kernel_smi_device = {
+	.name = "android_pmem",
+	.id = 4,
+	.dev = { .platform_data = &android_pmem_kernel_smi_pdata },
+};
+#endif
+
 
 static struct resource ram_console_resources[] = {
 	{
@@ -873,11 +956,20 @@ static struct platform_device *devices[] __initdata = {
 	&rndis_device,
 #endif
 	&android_usb_device,
+#if 0
 	&android_pmem_mdp_device,
 	&android_pmem_adsp_device,
 #ifdef CONFIG_720P_CAMERA
 	&android_pmem_venc_device,
 #endif
+#endif
+	&android_pmem_kernel_ebi1_device,
+#ifdef CONFIG_KERNEL_PMEM_SMI_REGION
+	&android_pmem_kernel_smi_device,
+#endif
+	&android_pmem_device,
+	&android_pmem_adsp_device,
+	&android_pmem_smipool_device,
 	&msm_kgsl_3d0,
 	&msm_device_i2c,
 	&capella_cm3602,
@@ -1075,6 +1167,47 @@ static const struct smd_tty_channel_desc smd_cdma_default_channels[] = {
 	{ .id = 27, .name = "SMD_GPSNMEA" }
 };
 
+static unsigned pmem_kernel_ebi1_size = PMEM_KERNEL_EBI1_SIZE;
+static int __init pmem_kernel_ebi1_size_setup(char *p)
+{
+	pmem_kernel_ebi1_size = memparse(p, NULL);
+	return 0;
+}
+early_param("pmem_kernel_ebi1_size", pmem_kernel_ebi1_size_setup);
+
+#ifdef CONFIG_KERNEL_PMEM_SMI_REGION
+static unsigned pmem_kernel_smi_size = MSM_PMEM_SMIPOOL_SIZE;
+static int __init pmem_kernel_smi_size_setup(char *p)
+{
+	pmem_kernel_smi_size = memparse(p, NULL);
+
+	/* Make sure that we don't allow more SMI memory then is
+	   available - the kernel mapping code has no way of knowing
+	   if it has gone over the edge */
+
+	if (pmem_kernel_smi_size > MSM_PMEM_SMIPOOL_SIZE)
+		pmem_kernel_smi_size = MSM_PMEM_SMIPOOL_SIZE;
+	return 0;
+}
+early_param("pmem_kernel_smi_size", pmem_kernel_smi_size_setup);
+#endif
+
+static unsigned pmem_sf_size = MSM_PMEM_SF_SIZE;
+static int __init pmem_sf_size_setup(char *p)
+{
+	pmem_sf_size = memparse(p, NULL);
+	return 0;
+}
+early_param("pmem_sf_size", pmem_sf_size_setup);
+
+static unsigned pmem_adsp_size = MSM_PMEM_ADSP_SIZE;
+static int __init pmem_adsp_size_setup(char *p)
+{
+	pmem_adsp_size = memparse(p, NULL);
+	return 0;
+}
+early_param("pmem_adsp_size", pmem_adsp_size_setup);
+
 static void __init mahimahi_init(void)
 {
 	int ret;
@@ -1197,10 +1330,67 @@ static void __init mahimahi_fixup(struct machine_desc *desc, struct tag *tags,
 	mi->bank[1].size = MSM_EBI1_BANK1_SIZE;
 }
 
+static void __init mahimahi_allocate_memory_regions(void)
+{
+	void *addr;
+	unsigned long size;
+
+	size = pmem_kernel_ebi1_size;
+	if (size) {
+		addr = alloc_bootmem_align(size, 0x100000);
+		android_pmem_kernel_ebi1_pdata.size = size;
+		pr_info("allocating %lu bytes at %p (%lx physical) for kernel"
+			" ebi1 pmem arena\n", size, addr, __pa(addr));
+	}
+
+#ifdef CONFIG_KERNEL_PMEM_SMI_REGION
+	size = pmem_kernel_smi_size;
+	if (size > MSM_PMEM_SMIPOOL_SIZE) {
+		printk(KERN_ERR "pmem kernel smi arena size %lu is too big\n",
+			size);
+
+		size = MSM_PMEM_SMIPOOL_SIZE;
+	}
+
+	android_pmem_kernel_smi_pdata.size = size;
+
+	pr_info("allocating %lu bytes at %lx (%lx physical)"
+		"for pmem kernel smi arena\n", size,
+		(long unsigned int) MSM_PMEM_SMIPOOL_BASE,
+		__pa(MSM_PMEM_SMIPOOL_BASE));
+#endif
+
+	size = pmem_sf_size;
+	if (size) {
+		addr = alloc_bootmem(size);
+		android_pmem_pdata.size = size;
+		pr_info("allocating %lu bytes at %p (%lx physical) for sf "
+			"pmem arena\n", size, addr, __pa(addr));
+	}
+
+	size = pmem_adsp_size;
+	if (size) {
+		addr = alloc_bootmem(size);
+		android_pmem_adsp_pdata.size = size;
+		pr_info("allocating %lu bytes at %p (%lx physical) for adsp "
+			"pmem arena\n", size, addr, __pa(addr));
+	}
+
+#if 0
+	size = MSM_FB_SIZE;
+	addr = (void *)MSM_FB_BASE;
+	msm_fb_resources[0].start = (unsigned long)addr;
+	msm_fb_resources[0].end = msm_fb_resources[0].start + size - 1;
+	pr_info("using %lu bytes of SMI at %lx physical for fb\n",
+	       size, (unsigned long)addr);
+#endif
+}
+
 static void __init mahimahi_map_io(void)
 {
 	msm_map_qsd8x50_io();
 	msm_clock_init(msm_clocks_8x50, msm_num_clocks_8x50);
+	mahimahi_allocate_memory_regions();
 }
 
 extern struct sys_timer msm_timer;
