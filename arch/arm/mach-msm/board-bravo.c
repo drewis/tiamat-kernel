@@ -66,6 +66,10 @@
 #include <linux/curcial_oj.h>
 #endif
 
+#include <linux/msm_kgsl.h>
+#include <linux/regulator/machine.h>
+#include "footswitch.h"
+
 static uint debug_uart;
 
 module_param_named(debug_uart, debug_uart, uint, 0);
@@ -280,56 +284,68 @@ static struct platform_device bravo_rfkill = {
 	.id = -1,
 };
 
-static struct resource msm_kgsl_resources[] = {
+/* start kgsl */
+static struct resource kgsl_3d0_resources[] = {
 	{
-		.name	= "kgsl_reg_memory",
-		.start	= MSM_GPU_REG_PHYS,
-		.end	= MSM_GPU_REG_PHYS + MSM_GPU_REG_SIZE - 1,
-		.flags	= IORESOURCE_MEM,
+		.name  = KGSL_3D0_REG_MEMORY,
+		.start = 0xA0000000,
+		.end = 0xA001ffff,
+		.flags = IORESOURCE_MEM,
 	},
 	{
-		.name	= "kgsl_phys_memory",
-		.start	= MSM_GPU_MEM_BASE,
-		.end	= MSM_GPU_MEM_BASE + MSM_GPU_MEM_SIZE - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= INT_GRAPHICS,
-		.end	= INT_GRAPHICS,
-		.flags	= IORESOURCE_IRQ,
+		.name = KGSL_3D0_IRQ,
+		.start = INT_GRAPHICS,
+		.end = INT_GRAPHICS,
+		.flags = IORESOURCE_IRQ,
 	},
 };
 
-#define PWR_RAIL_GRP_CLK		8
-static int bravo_kgsl_power_rail_mode(int follow_clk)
-{
-	int mode = follow_clk ? 0 : 1;
-	int rail_id = PWR_RAIL_GRP_CLK;
-
-	return msm_proc_comm(PCOM_CLKCTL_RPC_RAIL_CONTROL, &rail_id, &mode);
-}
-
-static int bravo_kgsl_power(bool on)
-{
-	int cmd;
-	int rail_id = PWR_RAIL_GRP_CLK;
-
-	cmd = on ? PCOM_CLKCTL_RPC_RAIL_ENABLE : PCOM_CLKCTL_RPC_RAIL_DISABLE;
-	return msm_proc_comm(cmd, &rail_id, NULL);
-}
-
-static struct platform_device msm_kgsl_device = {
-	.name		= "kgsl",
-	.id		= -1,
-	.resource	= msm_kgsl_resources,
-	.num_resources	= ARRAY_SIZE(msm_kgsl_resources),
+static struct kgsl_device_platform_data kgsl_3d0_pdata = {
+	.pwr_data = {
+		.pwrlevel = {
+			{
+				.gpu_freq = 0,
+				.bus_freq = 128000000,
+			},
+		},
+		.init_level = 0,
+		.num_levels = 1,
+		.set_grp_async = NULL,
+		.idle_timeout = HZ/5,
+	},
+	.clk = {
+		.name = {
+			.clk = "grp_clk",
+		},
+	},
+	.imem_clk_name = {
+		.clk = "imem_clk",
+	},
 };
+
+struct platform_device msm_kgsl_3d0 = {
+	.name = "kgsl-3d0",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(kgsl_3d0_resources),
+	.resource = kgsl_3d0_resources,
+	.dev = {
+		.platform_data = &kgsl_3d0_pdata,
+	},
+};
+/* end kgsl */
+
+/* start footswitch regulator */
+struct platform_device *msm_footswitch_devices[] = {
+	FS_PCOM(FS_GFX3D,  "fs_gfx3d"),
+};
+unsigned msm_num_footswitch_devices = ARRAY_SIZE(msm_footswitch_devices);
+/* end footswitch regulator */
 
 static struct android_pmem_platform_data mdp_pmem_pdata = {
 	.name		= "pmem",
 	.start		= MSM_PMEM_MDP_BASE,
 	.size		= MSM_PMEM_MDP_SIZE,
-	.no_allocator	= 0,
+	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
 	.cached		= 1,
 };
 
@@ -337,7 +353,7 @@ static struct android_pmem_platform_data android_pmem_adsp_pdata = {
 	.name		= "pmem_adsp",
 	.start		= MSM_PMEM_ADSP_BASE,
 	.size		= MSM_PMEM_ADSP_SIZE,
-	.no_allocator	= 0,
+	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
 	.cached		= 1,
 };
 
@@ -345,7 +361,7 @@ static struct android_pmem_platform_data android_pmem_venc_pdata = {
 	.name		= "pmem_venc",
 	.start		= MSM_PMEM_VENC_BASE,
 	.size		= MSM_PMEM_VENC_SIZE,
-	.no_allocator	= 0,
+	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
 	.cached		= 1,
 };
 
@@ -1010,7 +1026,7 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_720P_CAMERA
 	&android_pmem_venc_device,
 #endif
-	&msm_kgsl_device,
+	&msm_kgsl_3d0,
 	&msm_device_i2c,
 	&msm_camera_sensor_s5k3e2fx,
 	&bravo_flashlight_device,
@@ -1221,15 +1237,13 @@ static void __init bravo_init(void)
 
 	gpio_request(BRAVO_GPIO_DS2482_SLP_N, "ds2482_slp_n");
 
-	/* set the gpu power rail to manual mode so clk en/dis will not
-	 * turn off gpu power, and hang it on resume */
-	bravo_kgsl_power_rail_mode(0);
-	bravo_kgsl_power(true);
-
 	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
 	msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+
+	platform_add_devices(msm_footswitch_devices,
+			msm_num_footswitch_devices);
 
 	i2c_register_board_info(0, base_i2c_devices,
 		ARRAY_SIZE(base_i2c_devices));
