@@ -127,6 +127,7 @@ enum {
 
 #ifdef CONFIG_MSM_MDP40
 #define MDP_DPP_HSIC			0x00080000
+#define MDP_BORDERFILL_SUPPORTED	0x00010000
 #endif
 
 #define MDP_TRANSP_NOP	0xffffffff

@@ -353,6 +353,15 @@ struct mdp4_statistic {
 	ulong err_format;
 };
 
+static inline int mdp4_overlay_borderfill_supported(void)
+{
+	unsigned int mdp_hw_version;
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+	mdp_hw_version = inpdw(MDP_BASE + 0x0); /* MDP_HW_VERSION */
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+	return (mdp_hw_version >= 0x0402030b);
+}
+
 void mdp4_sw_reset(unsigned long bits);
 void mdp4_display_intf_sel(int output, unsigned long intf);
 void mdp4_overlay_cfg(int layer, int blt_mode, int refresh, int direct_out);

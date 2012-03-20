@@ -1867,6 +1867,9 @@ int mdp4_overlay_get(struct fb_info *info, struct mdp_overlay *req)
 
 	*req = pipe->req_data;
 
+	if (mdp4_overlay_borderfill_supported())
+		req->flags |= MDP_BORDERFILL_SUPPORTED;
+
 	return 0;
 }
 
