@@ -72,6 +72,9 @@ enum {
 	MDP_Y_CBCR_H2V2_TILE,  /* Y and CbCr, pseudo planer tile */
 #endif
 	MDP_Y_CR_CB_H2V2,  /* Y, Cr and Cb, planar */
+#ifdef CONFIG_MSM_MDP40
+	MDP_Y_CR_CB_GH2V2,  /* Y, Cr and Cb, planar aligned to Android YV12 */
+#endif
 	MDP_Y_CB_CR_H2V2,  /* Y, Cb and Cr, planar */
 	MDP_IMGTYPE_LIMIT, // Non valid image type after this enum
 	MDP_IMGTYPE2_START = 0x10000,
