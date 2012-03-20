@@ -2370,13 +2370,34 @@ int mdp4_overlay_play(struct fb_info *info, struct msmfb_overlay_data *req,
 		pipe->srcp0_ystride = pipe->src_width;
 		pipe->srcp1_ystride = pipe->src_width;
 	} else if (pipe->fetch_plane == OVERLAY_PLANE_PLANAR) {
-		addr += pipe->src_width * pipe->src_height;
-		pipe->srcp1_addr = addr;
-		addr += ((pipe->src_width / 2) * (pipe->src_height / 2));
-		pipe->srcp2_addr = addr;
-		pipe->srcp0_ystride = pipe->src_width;
-		pipe->srcp1_ystride = pipe->src_width / 2;
-		pipe->srcp2_ystride = pipe->src_width / 2;
+		if (pipe->src_format == MDP_Y_CR_CB_GH2V2) {
+			addr += (ALIGN(pipe->src_width, 16) *
+				pipe->src_height);
+			pipe->srcp1_addr = addr;
+			addr += ((ALIGN((pipe->src_width / 2), 16)) *
+				(pipe->src_height / 2));
+			pipe->srcp2_addr = addr;
+		} else {
+			addr += (pipe->src_width * pipe->src_height);
+			pipe->srcp1_addr = addr;
+			addr += ((pipe->src_width / 2) *
+				(pipe->src_height / 2));
+			pipe->srcp2_addr = addr;
+		}
+		/* mdp planar format expects Cb in srcp1 and Cr in p2 */
+		if ((pipe->src_format == MDP_Y_CR_CB_H2V2) ||
+			(pipe->src_format == MDP_Y_CR_CB_GH2V2))
+			swap(pipe->srcp1_addr, pipe->srcp2_addr);
+
+		if (pipe->src_format == MDP_Y_CR_CB_GH2V2) {
+			pipe->srcp0_ystride = ALIGN(pipe->src_width, 16);
+			pipe->srcp1_ystride = ALIGN(pipe->src_width / 2, 16);
+			pipe->srcp2_ystride = ALIGN(pipe->src_width / 2, 16);
+		} else {
+			pipe->srcp0_ystride = pipe->src_width;
+			pipe->srcp1_ystride = pipe->src_width / 2;
+			pipe->srcp2_ystride = pipe->src_width / 2;
+		}
 	}
 
 #ifdef OVDEBUG
@@ -2385,11 +2406,17 @@ int mdp4_overlay_play(struct fb_info *info, struct msmfb_overlay_data *req,
 		pipe->dst_w, pipe->dst_h, pipe->mixer_num);
 #endif
 
-
 	if (pipe->pipe_num >= OVERLAY_PIPE_VG1)
 		mdp4_overlay_vg_setup(pipe);	/* video/graphic pipe */
-	else
+	else {
+		if (pipe->flags & MDP_SHARPENING) {
+			pr_warn(
+			"%s: Sharpening/Smoothing not supported on RGB pipe\n",
+								     __func__);
+			pipe->flags &= ~MDP_SHARPENING;
+		}
 		mdp4_overlay_rgb_setup(pipe);	/* rgb pipe */
+	}
 
 	mdp4_mixer_blend_setup(pipe);
 	mdp4_mixer_stage_up(pipe);
