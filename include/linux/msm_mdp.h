@@ -52,6 +52,7 @@
 						struct msmfb_mixer_info_req)
 #define MSMFB_OVERLAY_PLAY_WAIT _IOWR(MSMFB_IOCTL_MAGIC, 149, \
 						struct msmfb_overlay_data)
+#define FB_TYPE_3D_PANEL 0x10101010
 #endif
 
 enum {
@@ -72,6 +73,7 @@ enum {
 	MDP_Y_CBCR_H2V2_TILE,  /* Y and CbCr, pseudo planer tile */
 #endif
 	MDP_Y_CR_CB_H2V2,  /* Y, Cr and Cb, planar */
+	MDP_Y_CR_CB_GH2V2,  /* Y, Cr and Cb, planar aligned to Android YV12 */
 	MDP_Y_CB_CR_H2V2,  /* Y, Cb and Cr, planar */
 	MDP_IMGTYPE_LIMIT, // Non valid image type after this enum
 	MDP_IMGTYPE2_START = 0x10000,
@@ -83,6 +85,15 @@ enum {
 enum {
 	PMEM_IMG,
 	FB_IMG,
+};
+
+/* adding for liboverlay */
+enum {
+	HSIC_HUE = 0,
+	HSIC_SAT,
+	HSIC_INT,
+	HSIC_CON,
+	NUM_HSIC_PARAM,
 };
 
 /* flag values */
@@ -111,6 +122,11 @@ enum {
 #define MDP_DEINTERLACE_ODD		0x00400000
 #define MDP_OV_PLAY_NOWAIT		0x00200000
 #define MDP_SOURCE_ROTATED_90		0x00100000
+
+/* adding for liboverlay */
+#define MDP_BORDERFILL_SUPPORTED	0x00010000
+#define MDP_SECURE_OVERLAY_SESSION      0x00008000
+#define MDP_MEMORY_ID_TYPE_FB		0x00001000
 
 #define MDP_TRANSP_NOP	0xffffffff
 #define MDP_ALPHA_NOP	0xff
@@ -212,6 +228,18 @@ struct msmfb_img {
 	uint32_t format;
 };
 
+/* adding for liboverlay */
+struct dpp_ctrl {
+	/*
+	 *'sharp_strength' has inputs = -128 <-> 127
+	 *  Increasingly positive values correlate with increasingly sharper
+	 *  picture. Increasingly negative values correlate with increasingly
+	 *  smoothed picture.
+	 */
+	int8_t sharp_strength;
+	int8_t hsic_params[NUM_HSIC_PARAM];
+};
+
 struct mdp_overlay {
 	struct msmfb_img src;
 	struct mdp_rect src_rect;
@@ -223,6 +251,8 @@ struct mdp_overlay {
 	uint32_t flags;
 	uint32_t id;
 	uint32_t user_data[8];
+	/* adding for liboverlay */
+	struct dpp_ctrl dpp;
 };
 
 struct msmfb_overlay_3d {
@@ -234,6 +264,21 @@ struct msmfb_overlay_3d {
 struct msmfb_overlay_blt {
         uint32_t enable;
         struct msmfb_data data;
+};
+
+/* adding for liboverlay */
+enum {
+	MDP_BLOCK_RESERVED = 0,
+	MDP_BLOCK_OVERLAY_0,
+	MDP_BLOCK_OVERLAY_1,
+	MDP_BLOCK_VG_1,
+	MDP_BLOCK_VG_2,
+	MDP_BLOCK_RGB_1,
+	MDP_BLOCK_RGB_2,
+	MDP_BLOCK_DMA_P,
+	MDP_BLOCK_DMA_S,
+	MDP_BLOCK_DMA_E,
+	MDP_BLOCK_MAX,
 };
 
 struct mdp_page_protection {
