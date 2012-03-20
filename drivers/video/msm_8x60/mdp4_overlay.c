@@ -1991,6 +1991,10 @@ int mdp4_overlay_set(struct fb_info *info, struct mdp_overlay *req)
 		}
 	}
 
+	/* precompute HSIC matrices */
+	if (req->flags & MDP_DPP_HSIC)
+		mdp4_hsic_set(pipe, &(req->dpp));
+
 	mdp4_stat.overlay_set[pipe->mixer_num]++;
 	perf_level = mdp4_overlay_get_perf_level(req->src.width,
 						req->src.height,
@@ -2037,6 +2041,7 @@ int mdp4_overlay_unset(struct fb_info *info, int ndx)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
 	struct mdp4_overlay_pipe *pipe;
+	struct dpp_ctrl dpp;
 	uint32 i, ref_cnt = 0;
 	uint32 flags;
 
@@ -2118,6 +2123,15 @@ int mdp4_overlay_unset(struct fb_info *info, int ndx)
 		pipe->flags = flags;
 	}
 #endif
+
+	/* Reset any HSIC settings to default */
+	if (pipe->flags & MDP_DPP_HSIC) {
+		for (i = 0; i < NUM_HSIC_PARAM; i++)
+			dpp.hsic_params[i] = 0;
+
+		mdp4_hsic_set(pipe, &dpp);
+		mdp4_hsic_update(pipe);
+	}
 
 	mdp4_stat.overlay_unset[pipe->mixer_num]++;
 #ifdef CONFIG_FB_MSM_MIPI_DSI
@@ -2453,6 +2467,10 @@ int mdp4_overlay_play(struct fb_info *info, struct msmfb_overlay_data *req,
 #endif
 		}
 	}
+
+	/* write out DPP HSIC registers */
+	if (pipe->flags & MDP_DPP_HSIC)
+		mdp4_hsic_update(pipe);
 
 	mdp4_stat.overlay_play[pipe->mixer_num]++;
 
