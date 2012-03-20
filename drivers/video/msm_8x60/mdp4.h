@@ -229,6 +229,15 @@ enum {
 
 #define MDP4_MAX_PLANE		4
 
+struct mdp4_hsic_regs {
+	int32_t params[NUM_HSIC_PARAM];
+	int32_t conv_matrix[3][3];
+	int32_t	pre_limit[6];
+	int32_t post_limit[6];
+	int32_t pre_bias[3];
+	int32_t post_bias[3];
+	int32_t dirty;
+};
 
 struct mdp4_overlay_pipe {
 	uint32 pipe_used;
@@ -304,6 +313,7 @@ struct mdp4_overlay_pipe {
 	uint32 blt_end;
 	uint32 ov_cnt;
 	uint32 dmap_cnt;
+	struct mdp4_hsic_regs hsic_regs;
 	struct completion dmas_comp;
 	struct mdp_overlay req_data;
 };
@@ -352,6 +362,9 @@ static inline int mdp4_overlay_borderfill_supported(void)
 	return (mdp_hw_version >= 0x0402030b);
 }
 uint32_t mdp4_ss_table_value(int8_t param, int8_t index);
+void mdp4_hsic_set(struct mdp4_overlay_pipe *pipe, struct dpp_ctrl *ctrl);
+void mdp4_hsic_update(struct mdp4_overlay_pipe *pipe);
+
 void mdp4_sw_reset(unsigned long bits);
 void mdp4_display_intf_sel(int output, unsigned long intf);
 void mdp4_overlay_cfg(int layer, int blt_mode, int refresh, int direct_out);

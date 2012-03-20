@@ -124,6 +124,7 @@ enum {
 #define MDP_SOURCE_ROTATED_90		0x00100000
 
 /* adding for liboverlay */
+#define MDP_DPP_HSIC			0x00080000
 #define MDP_BORDERFILL_SUPPORTED	0x00010000
 #define MDP_SECURE_OVERLAY_SESSION      0x00008000
 #define MDP_MEMORY_ID_TYPE_FB		0x00001000
@@ -267,6 +268,12 @@ struct msmfb_overlay_blt {
 };
 
 /* adding for liboverlay */
+/*
+	mdp_block_type defines the identifiers for each of pipes in MDP 4.3
+	MDP_BLOCK_RESERVED is provided for backward compatibility and is
+	deprecated. It corresponds to DMA_P. So MDP_BLOCK_DMA_P should be used
+	instead.
+*/
 enum {
 	MDP_BLOCK_RESERVED = 0,
 	MDP_BLOCK_OVERLAY_0,

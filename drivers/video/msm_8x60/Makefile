@@ -12,6 +12,7 @@ obj-$(CONFIG_DEBUG_FS) += mdp_debugfs.o
 
 ifeq ($(CONFIG_MSM_MDP40),y)
 obj-y += mdp4_util.o
+obj-y += mdp4_hsic.o
 else
 obj-y += mdp_hw_init.o
 obj-y += mdp_ppp.o
