@@ -496,4 +496,7 @@ void mdp_hw_cursor_init(void);
 
 int mdp_ppp_blit(struct fb_info *info, struct mdp_blit_req *req);
 void mdp4_overlay_resource_release(void);
+
+uint32_t mdp4_ss_table_value(int8_t param, int8_t index);
+
 #endif /* MDP_H */
