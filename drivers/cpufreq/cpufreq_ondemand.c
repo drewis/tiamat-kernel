@@ -953,6 +953,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 static int __init cpufreq_gov_dbs_init(void)
 {
+	int err;
 	cputime64_t wall;
 	u64 idle_time;
 	unsigned int i;
@@ -985,8 +986,11 @@ static int __init cpufreq_gov_dbs_init(void)
 	for_each_possible_cpu(i) {
 		INIT_WORK(&per_cpu(dbs_refresh_work, i), dbs_refresh_callback);
 	}
+	err = cpufreq_register_governor(&cpufreq_gov_ondemand);
+	if (err)
+		destroy_workqueue(input_wq);
 
-	return cpufreq_register_governor(&cpufreq_gov_ondemand);
+	return err;
 }
 
 static void __exit cpufreq_gov_dbs_exit(void)
