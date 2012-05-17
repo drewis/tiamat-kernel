@@ -14,12 +14,13 @@
 #include <linux/delay.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
+#include <linux/io.h>
 
 #include "kgsl.h"
 #include "adreno_postmortem.h"
 #include "adreno.h"
 
-#include "a200_reg.h"
+#include "a2xx_reg.h"
 
 unsigned int kgsl_cff_dump_enable;
 int kgsl_pm_regs_enabled;
@@ -130,7 +131,7 @@ static ssize_t kgsl_ib_dump_read(
 	if (!ppos || !device || !kgsl_ib_base)
 		return 0;
 
-	kgsl_regread(device, REG_MH_MMU_PT_BASE, &pt_base);
+	kgsl_regread(device, MH_MMU_PT_BASE, &pt_base);
 	base_addr = kgsl_sharedmem_convertaddr(device, pt_base, kgsl_ib_base,
 		&ib_memsize);
 
@@ -222,21 +223,23 @@ static int kgsl_regread_nolock(struct kgsl_device *device,
 	return 0;
 }
 
-#define KGSL_ISTORE_START 0x5000
-#define KGSL_ISTORE_LENGTH 0x600
+#define ADRENO_ISTORE_START 0x5000
 static ssize_t kgsl_istore_read(
 	struct file *file,
 	char __user *buff,
 	size_t buff_count,
 	loff_t *ppos)
 {
-	int i, count = KGSL_ISTORE_LENGTH, remaining, pos = 0, tot = 0;
+	int i, count, remaining, pos = 0, tot = 0;
 	struct kgsl_device *device = file->private_data;
 	const int rowc = 8;
+	struct adreno_device *adreno_dev;
 
 	if (!ppos || !device)
 		return 0;
 
+	adreno_dev = ADRENO_DEVICE(device);
+	count = adreno_dev->istore_size * ADRENO_ISTORE_WORDS;
 	remaining = count;
 	for (i = 0; i < count; i += rowc) {
 		unsigned int vals[rowc];
@@ -247,7 +250,8 @@ static ssize_t kgsl_istore_read(
 		if (pos >= *ppos) {
 			for (j = 0; j < linec; ++j)
 				kgsl_regread_nolock(device,
-					KGSL_ISTORE_START+i+j, vals+j);
+						    ADRENO_ISTORE_START + i + j,
+						    vals + j);
 		} else
 			memset(vals, 0, sizeof(vals));
 
@@ -395,8 +399,8 @@ static void kgsl_mh_reg_read_fill(struct kgsl_device *device, int i,
 	int j;
 
 	for (j = 0; j < linec; ++j) {
-		kgsl_regwrite(device, REG_MH_DEBUG_CTRL, i+j);
-		kgsl_regread(device, REG_MH_DEBUG_DATA, vals+j);
+		kgsl_regwrite(device, MH_DEBUG_CTRL, i+j);
+		kgsl_regread(device, MH_DEBUG_DATA, vals+j);
 	}
 }
 
@@ -420,6 +424,8 @@ static const struct file_operations kgsl_mh_debug_fops = {
 
 void adreno_debugfs_init(struct kgsl_device *device)
 {
+	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
+
 	if (!device->d_debugfs || IS_ERR(device->d_debugfs))
 		return;
 
@@ -435,6 +441,8 @@ void adreno_debugfs_init(struct kgsl_device *device)
 			    &kgsl_mh_debug_fops);
 	debugfs_create_file("cff_dump", 0644, device->d_debugfs, device,
 			    &kgsl_cff_dump_enable_fops);
+	debugfs_create_u32("wait_timeout", 0644, device->d_debugfs,
+		&adreno_dev->wait_timeout);
 
 	/* Create post mortem control files */
 
