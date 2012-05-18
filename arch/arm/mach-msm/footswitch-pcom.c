@@ -69,7 +69,7 @@ static inline int set_rail_mode(int pcom_id, int mode)
 {
 	int  rc;
 
-	rc = msm_proc_comm(PCOM_CLKCTL_RPC_RAIL_CONTROL, &pcom_id, &mode);
+	rc = msm_proc_comm(PCOM_CLK_REGIME_SEC_RAIL_CONTROL, &pcom_id, &mode);
 	if (!rc && pcom_id)
 		rc = -EINVAL;
 
@@ -123,7 +123,7 @@ static int footswitch_enable(struct regulator_dev *rdev)
 	if (rc)
 		return rc;
 
-	rc = set_rail_state(fs->pcom_id, PCOM_CLKCTL_RPC_RAIL_ENABLE);
+	rc = set_rail_state(fs->pcom_id, PCOM_CLK_REGIME_SEC_RAIL_ENABLE);
 	if (!rc)
 		fs->is_enabled = true;
 
@@ -141,7 +141,7 @@ static int footswitch_disable(struct regulator_dev *rdev)
 	if (rc)
 		return rc;
 
-	rc = set_rail_state(fs->pcom_id, PCOM_CLKCTL_RPC_RAIL_DISABLE);
+	rc = set_rail_state(fs->pcom_id, PCOM_CLK_REGIME_SEC_RAIL_DISABLE);
 	if (!rc)
 		fs->is_enabled = false;
 
