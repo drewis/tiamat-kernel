@@ -64,7 +64,7 @@ struct adreno_ringbuffer {
 
 #define GSL_RB_WRITE(ring, gpuaddr, data) \
 	do { \
-		writel_relaxed(data, ring); \
+		*ring = data; \
 		wmb(); \
 		kgsl_cffdump_setmem(gpuaddr, data, 4); \
 		ring++; \
@@ -93,7 +93,7 @@ struct adreno_ringbuffer {
 #define GSL_RB_CNTL_NO_UPDATE 0x0 /* enable */
 #define GSL_RB_GET_READPTR(rb, data) \
 	do { \
-		*(data) = readl_relaxed(&(rb)->memptrs->rptr); \
+		*(data) = rb->memptrs->rptr; \
 	} while (0)
 #else
 #define GSL_RB_CNTL_NO_UPDATE 0x1 /* disable */
@@ -117,9 +117,9 @@ int adreno_ringbuffer_init(struct kgsl_device *device);
 int adreno_ringbuffer_start(struct adreno_ringbuffer *rb,
 				unsigned int init_ram);
 
-int adreno_ringbuffer_stop(struct adreno_ringbuffer *rb);
+void adreno_ringbuffer_stop(struct adreno_ringbuffer *rb);
 
-int adreno_ringbuffer_close(struct adreno_ringbuffer *rb);
+void adreno_ringbuffer_close(struct adreno_ringbuffer *rb);
 
 void adreno_ringbuffer_issuecmds(struct kgsl_device *device,
 					unsigned int flags,
